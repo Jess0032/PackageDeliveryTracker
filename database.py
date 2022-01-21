@@ -2,7 +2,7 @@ import os
 
 from sqlalchemy import Column, String, create_engine, Integer
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 
 Base = declarative_base()
 
@@ -84,6 +84,3 @@ class DBHelper:
 
             except Exception as e:
                 return f'An error occurred retrieving items.\nError {e}'
-
-db = DBHelper(os.getenv("DATABASE_URL"))
-print(db.get_users())
