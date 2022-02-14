@@ -20,6 +20,15 @@ FECHA : **{}**
 
 token = ""
 
+@bot.on(NewMessage(pattern='/start'))
+async def add_elements(event):
+    text = """Bienvenido al bot Rastreador de paquetes, para empezar a rastrear un paquete envie **/add 
+    CODIGOPAQUETE** esto comprobará el estado de su paquete cada cierto tiempo y le notificará cuando este cambie. 
+    Para dejar de rastrear un paquete envie **/del CODIGOPAQUETE**. Para conocer los códigos que está rastreando 
+    envie **/codes** Para conocer el estado del paquete en el momento actual envie **/status CODIGOPAQUETE** 
+    
+    BOT NO OFICIAL"""
+    await event.respond(text)
 
 @bot.on(NewMessage(pattern='\/add (.+)'))
 async def add_elements(event):
