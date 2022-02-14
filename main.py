@@ -94,7 +94,10 @@ async def check_changes(user: int):
                                             last['oficina_destino'],
                                             last['estado'], last['fecha'])
                 await bot.send_message(user, message)
-                db.update(elementInDb.id, last['estado'])
+                if last['estado'] == "ENTREGADO":
+                    db.delete(user, elementInDb.id)
+                else:
+                    db.update(elementInDb.id, last['estado'])
     print('checkeado')
 
 
