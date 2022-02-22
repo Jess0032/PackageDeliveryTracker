@@ -1,7 +1,4 @@
 import os
-from itertools import groupby
-from operator import attrgetter, itemgetter
-
 from sqlalchemy import Column, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -84,7 +81,7 @@ class DBHelper:
     def get_packages_from_user(self, user_id: str):
         with sessionmaker(self.engine)() as session:
             try:
-                db_item = session.query(Package).filter_by(user_id=user_id).all()
+                db_item = session.query(Package.package_id, Package.status).filter_by(user_id=user_id).all()
                 return db_item
 
             except Exception as e:

@@ -32,7 +32,7 @@ async def add_elements(event):
     await event.respond(text)
 
 
-@bot.on(NewMessage(pattern='\/add (.+)'))
+@bot.on(NewMessage(pattern='\/add\s+(\w+)'))
 async def add_elements(event):
     code = str.upper(event.pattern_match.group(1))
     status = get_status_package(code)
@@ -43,11 +43,11 @@ async def add_elements(event):
                                                                  item['oficina_destino'],
                                                                  item['estado'], item['fecha'])
 
-    await event.respond(db.add(str.upper(code), str(event.peer_id.user_id), status['datos'][0]['estado']))
+    await event.respond(db.add(str.upper(code), str(event.peer_id.user_id), status['datos'][0]['estado'] if status['datos'] else ''))
     await event.respond(text)
 
 
-@bot.on(NewMessage(pattern='\/del (.+)'))
+@bot.on(NewMessage(pattern='\/del\s+(\w+)'))
 async def del_elements(event):
     code = str.upper(event.pattern_match.group(1))
     await event.respond(db.delete(str(event.peer_id.user_id), code))
@@ -59,14 +59,14 @@ async def get_elements(event):
     text = ''
     for package in db.get_packages_from_user(str(event.peer_id.user_id)):
         await check_changes(package)
-        text+=f'code: **{package.id}** status: **{package.status}**\n'
+        text+=f'code: **{package[0]}** status: **{package[1]}**\n'
     if not text:
         text = 'Usted no está rastreando ningún código aún.'
     await event.respond(text)
 
 
 
-@bot.on(NewMessage(pattern='\/status (.+)'))
+@bot.on(NewMessage(pattern='\/status\s+(\w+)'))
 async def status(event):
     check_token()
     for package in db.get_packages_from_user(str(event.peer_id.user_id)):
@@ -121,7 +121,7 @@ async def check_changes(package):
             for user in db.get_users_from_packages(package[0]):
                 await bot.send_message(int(user), message)
 
-            if last['estado'] == "ENTREGADO":
+            if status['timeline'] == "ENTREGADO":
                 db.delete_package(package[0])
             else:
                 db.update(package[0], last['estado'])
