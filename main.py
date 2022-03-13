@@ -1,134 +1,166 @@
 import asyncio
+import json
 import re
 from datetime import datetime
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import aiohttp as aiohttp
 import requests
 
 from telethon.events import NewMessage
 import logging
-
+from strings import *
 from config import *
 
 logging.basicConfig(format='[%(levelname) 5s/%(asctime)s]%(name)s:%(message)s', level=logging.WARNING)
 
-datos_string: str = """
-OFICINA_ORIGEN : **{}**
-OFICINA_DESTINO : **{}**
-ESTADO : **{}**
-FECHA : **{}**
-
-"""
-
 token = ""
 
+
+def string_status(code, status):
+    text = string_data1.format(code=str.upper(code),
+                               country=status['p_origen'] or "DESCONOCIDO",
+                               timeline=status['timeline'])
+
+    timeline = ''.join(f"**🟦️ {len(status['datos']) - i}**" + string_data2.format(item['oficina_origen'],
+                                                                                item['oficina_destino'],
+                                                                                item['estado'], item['fecha'])
+                    for i, item in enumerate(status['datos']))
+
+    return text+(timeline or no_data)
+
+
 @bot.on(NewMessage(pattern='/start'))
+async def welcome(event):
+    await event.respond(welcome_string)
+
+
+@bot.on(NewMessage(pattern='\/add\s*(\w*)'))
 async def add_elements(event):
-    text = """Bienvenido al bot Rastreador de paquetes, para empezar a rastrear un paquete envie:
-**/add CODIGOPAQUETE** -Esto comprobará el estado de su paquete cada cierto tiempo y le notificará cuando este cambie. 
-**/del CODIGOPAQUETE** -Para dejar de rastrear un paquete.  
-**/codes** -Para conocer los paquetes que está rastreando actualmente.
-**/status CODIGOPAQUETE** -Para conocer el estado del paquete en el momento actual. 
-    
-**BOT NO OFICIAL**"""
-    await event.respond(text)
+
+    if not (code := event.pattern_match.group(1)):
+        await event.respond(not_argumnts.format(command='add'))
+        return
+
+    async with aiohttp.ClientSession() as session:
+        status = await get_status_package_from_api(session, code)
+
+    db_respond = db.add(str.upper(code), str(event.peer_id.user_id),
+                        {'status': status['datos'][0]['estado'],
+                         'destination': status['datos'][0]['oficina_destino']}
+                        if status['datos'] else {'status': '', 'destination': ''})
+
+    await event.respond(db_respond)
+
+    if db_respond == 'Success insertion':
+        await event.respond(string_status(code, status))
 
 
-@bot.on(NewMessage(pattern='\/add\s+(\w+)'))
-async def add_elements(event):
-    code = str.upper(event.pattern_match.group(1))
-    status = get_status_package(code)
-    text = f"El paquete **{str.upper(code)}** se encuentra **{status['timeline']}**\n\n✅"
-    list = status['datos']
-    for i, item in enumerate(list):
-        text += f"**🟦️ {len(list) - i}**" + datos_string.format(item['oficina_origen'],
-                                                                 item['oficina_destino'],
-                                                                 item['estado'], item['fecha'])
-
-    await event.respond(db.add(str.upper(code), str(event.peer_id.user_id), status['datos'][0]['estado'] if status['datos'] else ''))
-    await event.respond(text)
-
-
-@bot.on(NewMessage(pattern='\/del\s+(\w+)'))
+@bot.on(NewMessage(pattern='\/del\s*(\w*)'))
 async def del_elements(event):
-    code = str.upper(event.pattern_match.group(1))
+    if not (code := event.pattern_match.group(1)):
+        await event.respond(not_argumnts.format(command='del'))
+        return
+
     await event.respond(db.delete(str(event.peer_id.user_id), code))
 
 
 @bot.on(NewMessage(pattern='\/codes'))
-async def get_elements(event):
-    check_token()
-    text = ''
-    for package in db.get_packages_from_user(str(event.peer_id.user_id)):
-        await check_changes(package)
-        text+=f'code: **{package[0]}** status: **{package[1]}**\n'
-    if not text:
-        text = 'Usted no está rastreando ningún código aún.'
-    await event.respond(text)
+async def get_codes_trackin(event):
+    async with aiohttp.ClientSession() as session:
+        await check_packages(session, db.get_packages_from_user(str(event.peer_id.user_id)))
+
+    text = ''.join(
+        f'code: **{package[0]}** status: **{json.loads(package[1])["status"]}**\n'
+        for package in db.get_packages_from_user(str(event.peer_id.user_id))
+    )
+
+    await event.respond(text or 'Usted no está rastreando ningún código aún.')
 
 
-
-@bot.on(NewMessage(pattern='\/status\s+(\w+)'))
+@bot.on(NewMessage(pattern='\/status\s*(\w*)'))
 async def status(event):
-    check_token()
-    for package in db.get_packages_from_user(str(event.peer_id.user_id)):
-        await check_changes(package)
-    code = event.pattern_match.group(1)
-    status = get_status_package(code)
-    text = f"El paquete **{str.upper(code)}** se encuentra **{status['timeline']}**\n\n✅"
-    list = status['datos']
-    for i, item in enumerate(list):
-        text += f"**🟦️ {len(list) - i}**" + datos_string.format(item['oficina_origen'],
-                                                                 item['oficina_destino'],
-                                                                 item['estado'], item['fecha'])
-    await event.respond(text)
+
+    if not (code := event.pattern_match.group(1)):
+        await event.respond(not_argumnts.format(command='status'))
+        return
+
+    async with aiohttp.ClientSession() as session:
+        await check_packages(session, db.get_packages_from_user(str(event.peer_id.user_id)))
+
+        status = await get_status_package_from_api(session, code)
+
+    await event.respond(string_status(code, status))
 
 
-def get_status_package(codigo: str):
+async def get_status_package_from_api(session, codigo: str):
     data = {
         'codigo': codigo,
         'anno': str(datetime.now().year),
         'token': token,
         'user': ''
     }
-    r = requests.post("https://www.correos.cu/wp-json/correos-api/enviosweb/", data=data)
-    return r.json()
+    url = "https://www.correos.cu/wp-json/correos-api/enviosweb/"
+
+    async with session.post(url, data=data) as response:
+        response_json = await response.json()
+
+    if response_json['error'] == 'Token Inválido':
+        await get_new_token()
+        response_json = await get_status_package_from_api(session, codigo)
+
+    return response_json
 
 
-def check_token():
+async def get_new_token():
     global token
-    page = requests.get('https://www.correos.cu/rastreador-de-envios/').text
-    token = re.search('<input type="hidden" id="side" value="(\w+)">', page).group(1)
+    async with aiohttp.ClientSession() as session:
+        async with session.get('https://www.correos.cu/rastreador-de-envios/') as response:
+            token = re.search('<input type="hidden" id="side" value="(\w+)">', await response.text()).group(1)
+
+
+async def check_packages(session, packages):
+    tasks = [asyncio.create_task(check_changes(session, package)) for package in packages]
+    await asyncio.gather(*tasks, return_exceptions=True)
+
+    return len(tasks)
 
 
 async def check_status():
-    while True:
-        check_token()
-        for package in db.get_packages():
-            await check_changes(package)
-        await asyncio.sleep(HOURS*60*60)
+    start_time = datetime.now()
+    async with aiohttp.ClientSession() as session:
+        count = await check_packages(session, db.get_packages())
+
+    print(f"Check status of {count} package in {(datetime.now() - start_time).total_seconds()} seconds.")
 
 
-async def check_changes(package):
-    status = get_status_package(package[0])
+async def check_changes(session, package):
+    status = await get_status_package_from_api(session, package[0])
+    status_fromdb = json.loads(package[1])
 
-    if status['datos']:
-        last = status['datos'][0]
-        if package[1] != last['estado']:
-            message = f"‼️‼️NUEVO ESTADO PARA EL PAQUETE **{package[0]}** ({status['timeline']}) \n" + \
-                        datos_string.format(last['oficina_origen'],
-                                            last['oficina_destino'],
-                                            last['estado'], last['fecha'])
+    if not status['datos'] or (status_fromdb['status'] == status['datos'][0]['estado']
+                                and status_fromdb['destination'] == status['datos'][0]['oficina_destino']):
+        return
 
-            for user in db.get_users_from_packages(package[0]):
-                await bot.send_message(int(user), message)
+    last = status['datos'][0]
 
-            if status['timeline'] == "ENTREGADO":
-                db.delete_package(package[0])
-            else:
-                db.update(package[0], last['estado'])
-    print('checkeado')
+    message = new_state.format(package=package[0], timeline=status['timeline']) + \
+              string_data2.format(last['oficina_origen'],
+                                  last['oficina_destino'],
+                                  last['estado'], last['fecha']) + view_all_timeline.format(package=package[0])
+
+    for user in db.get_users_from_packages(package[0]):
+        await bot.send_message(int(user), message)
+
+    if status['timeline'] == "ENTREGADO":
+        db.delete_package(package[0])
+    else:
+        db.update(package[0], {'status': last['estado'], 'destination': last['oficina_destino']})
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.create_task(check_status())
-    loop.run_forever()
+    scheduler = AsyncIOScheduler()
+    print("Iniciando...")
+    scheduler.add_job(check_status, 'interval', hours=1, next_run_time=datetime.now())
+    scheduler.start()
+    asyncio.get_event_loop().run_forever()
