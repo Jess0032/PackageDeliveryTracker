@@ -1,5 +1,6 @@
-requests
 Telethon
 cryptg
 SQLAlchemy
 psycopg2
+aiohttp
+APScheduler

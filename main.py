@@ -5,10 +5,10 @@ from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import aiohttp as aiohttp
-import requests
 
 from telethon.events import NewMessage
 import logging
+
 from strings import *
 from config import *
 
