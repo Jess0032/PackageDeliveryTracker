@@ -2,6 +2,8 @@ import json
 from sqlalchemy import Column, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from strings import *
+from config import MAX_PACKAGES_FOR_USER
 
 Base = declarative_base()
 
@@ -27,14 +29,18 @@ class DBHelper:
         Base.metadata.create_all(self.engine, checkfirst=True)
 
     def add(self, package_id: str, user_id: str, status: dict):
+
+        if len(self.get_packages_from_user(user_id=user_id)) > MAX_PACKAGES_FOR_USER:
+            return max_exceeded
+
         with sessionmaker(self.engine)() as session:
             try:
                 db_item = session.query(Package).filter_by(package_id=package_id, user_id=user_id).first()
                 if db_item:
-                    return 'This package already exists in database'
+                    return alredy_exist
                 session.add(Package(package_id=package_id, user_id=user_id, laststatus=status))
                 session.commit()
-                return 'Success insertion'
+                return success_add
 
             except Exception as e:
                 return f'An error occurred.\nError: {e}'
@@ -58,10 +64,10 @@ class DBHelper:
             try:
                 db_item = session.query(Package).filter_by(package_id=package_id, user_id=user_id).first()
                 if not db_item:
-                    return 'Element does not exist in database'
+                    return dont_exist
                 session.delete(db_item)
                 session.commit()
-                return 'Success removal'
+                return success_del
 
             except Exception as e:
                 return f'An error occurred.\nError: {e}'
@@ -73,7 +79,7 @@ class DBHelper:
                 for db_item in db_items:
                     session.delete(db_item)
                 session.commit()
-                return 'Success removal'
+                return success_del
 
             except Exception as e:
                 return f'An error occurred.\nError: {e}'

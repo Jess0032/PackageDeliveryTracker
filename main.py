@@ -75,7 +75,7 @@ async def get_codes_trackin(event):
         for package in db.get_packages_from_user(str(event.peer_id.user_id))
     )
 
-    await event.respond(text or 'Usted no está rastreando ningún código aún.')
+    await event.respond(text or not_codes)
 
 
 @bot.on(NewMessage(pattern='\/status\s*(\w*)'))
@@ -160,7 +160,7 @@ async def check_changes(session, package):
 
 if __name__ == "__main__":
     scheduler = AsyncIOScheduler()
-    print("Iniciando...")
-    scheduler.add_job(check_status, 'interval', hours=1, next_run_time=datetime.now())
+    print("Started...")
+    scheduler.add_job(check_status, 'interval', hours=HOURS, next_run_time=datetime.now())
     scheduler.start()
     asyncio.get_event_loop().run_forever()
