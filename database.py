@@ -1,9 +1,10 @@
 import json
+import os
+
 from sqlalchemy import Column, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from strings import *
-from config import MAX_PACKAGES_FOR_USER
 
 Base = declarative_base()
 
@@ -30,7 +31,7 @@ class DBHelper:
 
     def add(self, package_id: str, user_id: str, status: dict):
 
-        if len(self.get_packages_from_user(user_id=user_id)) > MAX_PACKAGES_FOR_USER:
+        if len(self.get_packages_from_user(user_id=user_id)) > int(os.environ.get("MAX_PACKAGES_FOR_USERS")):
             return max_exceeded
 
         with sessionmaker(self.engine)() as session:
