@@ -52,7 +52,7 @@ async def add_elements(event):
 
     await event.respond(db_respond)
 
-    if db_respond == 'Success insertion':
+    if db_respond == success_add:
         await event.respond(string_status(code, status))
 
 
