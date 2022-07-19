@@ -45,6 +45,11 @@ async def add_elements(event):
     async with aiohttp.ClientSession() as session:
         status = await get_status_package_from_api(session, code)
 
+    if status['timeline'] == "ENTREGADO":
+        await event.respond(delivered)
+        await event.respond(string_status(code, status))
+        return
+
     db_respond = db.add(str.upper(code), str(event.peer_id.user_id),
                         {'status': status['datos'][0]['estado'],
                          'destination': status['datos'][0]['oficina_destino']}
