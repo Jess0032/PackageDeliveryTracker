@@ -141,7 +141,7 @@ async def check_status():
 
 async def check_changes(session, package):
     status = await get_status_package_from_api(session, package[0])
-    bot.send_message(ADMIN, json.dumps(status))
+    await bot.send_message(ADMIN, json.dumps(status))
     status_fromdb = json.loads(package[1])
 
     if not status['datos'] or (status_fromdb['status'] == status['datos'][0]['estado']
