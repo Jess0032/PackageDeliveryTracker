@@ -106,14 +106,15 @@ async def get_status_package_from_api(session, codigo: str):
         'user': ''
     }
     url = "https://www.correos.cu/wp-json/correos-api/enviosweb/"
+    try:
+        async with session.post(url, data=data) as response:
+            response_json = await response.json()
 
-    async with session.post(url, data=data) as response:
-        response_json = await response.json()
-
-    if response_json['error'] == 'Token Inválido':
-        await get_new_token()
-        response_json = await get_status_package_from_api(session, codigo)
-
+        if response_json['error'] == 'Token Inválido':
+            await get_new_token()
+            response_json = await get_status_package_from_api(session, codigo)
+    except aiohttp.ClientConnectorError as e:
+        print('Connection Error', str(e))         
     return response_json
 
 
