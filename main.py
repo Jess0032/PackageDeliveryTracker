@@ -114,7 +114,7 @@ async def get_status_package_from_api(session, codigo: str):
             await get_new_token()
             response_json = await get_status_package_from_api(session, codigo)
     except aiohttp.ClientConnectorError as e:
-        print('Connection Error', str(e))         
+        print('Connection Error for ', codigo, str(e))         
     return response_json
 
 
