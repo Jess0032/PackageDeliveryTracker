@@ -113,9 +113,12 @@ async def get_status_package_from_api(session, codigo: str):
         if response_json['error'] == 'Token Inválido':
             await get_new_token()
             response_json = await get_status_package_from_api(session, codigo)
+
+        return response_json
+
     except aiohttp.ClientConnectorError as e:
-        print('Connection Error for ', codigo, str(e))         
-    return response_json
+        print('Connection Error for ', codigo, str(e))
+        await bot.send_message(ADMIN, 'Connection Error for ', codigo, str(e))
 
 
 async def get_new_token():
@@ -126,23 +129,21 @@ async def get_new_token():
 
 
 async def check_packages(session, packages):
-    tasks = [asyncio.create_task(check_changes(session, package)) for package in packages]
-    await asyncio.gather(*tasks, return_exceptions=True)
+    for package in packages:
+        await check_changes(session, package)
+        await asyncio.sleep(5)
 
-    return len(tasks)
 
-
-async def check_status():
-    start_time = datetime.now()
-    async with aiohttp.ClientSession() as session:
-        count = await check_packages(session, db.get_packages())
-
-    print(f"Check status of {count} package in {(datetime.now() - start_time).total_seconds()} seconds.")
+async def cycle_check():
+    while True:
+        start = datetime.now()
+        async with aiohttp.ClientSession() as session:
+            await check_packages(session, db.get_packages())
+        print(f"Cycle made in {datetime.now()-start}")
 
 
 async def check_changes(session, package):
     status = await get_status_package_from_api(session, package[0])
-    await bot.send_message(ADMIN, package[0]+": "+json.dumps(status))
     status_fromdb = json.loads(package[1])
 
     if not status['datos'] or (status_fromdb['status'] == status['datos'][0]['estado']
@@ -166,8 +167,5 @@ async def check_changes(session, package):
 
 
 if __name__ == "__main__":
-    scheduler = AsyncIOScheduler()
-    print("Started...")
-    scheduler.add_job(check_status, 'interval', hours=HOURS, next_run_time=datetime.now())
-    scheduler.start()
+    asyncio.get_event_loop().create_task(cycle_check())
     asyncio.get_event_loop().run_forever()
