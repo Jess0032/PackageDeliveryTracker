@@ -140,12 +140,13 @@ async def cycle_check():
         packages = db.get_packages()
         async with aiohttp.ClientSession() as session:
             await check_packages(session, packages, 3)
-        print(f"Cycle made in {datetime.now()-start}, {len(packages)} checked, start at {start}")
+        log_text = f"Cycle made in {datetime.now()-start}, {len(packages)} checked, start at {start}"
+        print(log_text)
+        bot.send_message(ADMIN, log_text)
 
 
 async def check_changes(session, package):
     status = await get_status_package_from_api(session, package[0])
-    print(status)
     status_fromdb = json.loads(package[1])
 
     if not status['datos'] or (status_fromdb['status'] == status['datos'][0]['estado']
