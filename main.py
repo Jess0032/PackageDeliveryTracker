@@ -142,7 +142,7 @@ async def cycle_check():
             await check_packages(session, packages, 3)
         log_text = f"Cycle made in {datetime.now()-start}, {len(packages)} checked, start at {start}"
         print(log_text)
-        bot.send_message(ADMIN, log_text)
+        await bot.send_message(ADMIN, log_text)
 
 
 async def check_changes(session, package):
