@@ -72,15 +72,15 @@ async def del_elements(event):
 
 @bot.on(NewMessage(pattern='\/codes'))
 async def get_codes_trackin(event):
-    async with aiohttp.ClientSession() as session:
-        await check_packages(session, db.get_packages_from_user(str(event.peer_id.user_id)))
-
     text = ''.join(
         f'code: **{package[0]}** status: **{json.loads(package[1])["status"]}**\n'
         for package in db.get_packages_from_user(str(event.peer_id.user_id))
     )
 
     await event.respond(text or not_codes)
+
+    async with aiohttp.ClientSession() as session:
+        await check_packages(session, db.get_packages_from_user(str(event.peer_id.user_id)), 1)
 
 
 @bot.on(NewMessage(pattern='\/status\s*(\w*)'))
@@ -91,11 +91,11 @@ async def status(event):
         return
 
     async with aiohttp.ClientSession() as session:
-        await check_packages(session, db.get_packages_from_user(str(event.peer_id.user_id)))
-
         status = await get_status_package_from_api(session, code)
 
-    await event.respond(string_status(code, status))
+        await event.respond(string_status(code, status))
+
+        await check_packages(session, db.get_packages_from_user(str(event.peer_id.user_id)), 1)
 
 
 async def get_status_package_from_api(session, codigo: str):
@@ -128,22 +128,24 @@ async def get_new_token():
             token = re.search('<input type="hidden" id="side" value="(\w+)">', await response.text()).group(1)
 
 
-async def check_packages(session, packages):
+async def check_packages(session, packages, time):
     for package in packages:
         await check_changes(session, package)
-        await asyncio.sleep(5)
+        await asyncio.sleep(time)
 
 
 async def cycle_check():
     while True:
         start = datetime.now()
+        packages = db.get_packages()
         async with aiohttp.ClientSession() as session:
-            await check_packages(session, db.get_packages())
-        print(f"Cycle made in {datetime.now()-start}")
+            await check_packages(session, packages, 3)
+        print(f"Cycle made in {datetime.now()-start}, {len(packages)} checked, start at {start}")
 
 
 async def check_changes(session, package):
     status = await get_status_package_from_api(session, package[0])
+    print(status)
     status_fromdb = json.loads(package[1])
 
     if not status['datos'] or (status_fromdb['status'] == status['datos'][0]['estado']
