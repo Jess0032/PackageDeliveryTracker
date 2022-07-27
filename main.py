@@ -78,8 +78,9 @@ async def get_codes_trackin(event):
     )
 
     await event.respond(text or not_codes)
-
-    async with aiohttp.ClientSession() as session:
+    
+    connector = aiohttp.TCPConnector(force_close=True)
+    async with aiohttp.ClientSession(connector=connector) as session:
         await check_packages(session, db.get_packages_from_user(str(event.peer_id.user_id)), 1)
 
 
@@ -90,7 +91,9 @@ async def status(event):
         await event.respond(not_argumnts.format(command='status'))
         return
 
-    async with aiohttp.ClientSession() as session:
+    connector = aiohttp.TCPConnector(force_close=True)
+    async with aiohttp.ClientSession(connector=connector) as session:
+
         status = await get_status_package_from_api(session, code)
 
         await event.respond(string_status(code, status))
@@ -138,7 +141,8 @@ async def cycle_check():
     while True:
         start = datetime.now()
         packages = db.get_packages()
-        async with aiohttp.ClientSession() as session:
+        connector = aiohttp.TCPConnector(force_close=True)
+        async with aiohttp.ClientSession(connector=connector) as session:
             await check_packages(session, packages, 3)
         log_text = f"Cycle made in {datetime.now()-start}, {len(packages)} checked, start at {start}"
         print(log_text)
