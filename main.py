@@ -174,5 +174,5 @@ async def check_changes(session, package):
 
 
 if __name__ == "__main__":
-    asyncio.get_event_loop().create_task(cycle_check())
-    asyncio.get_event_loop().run_forever()
+    asyncio.get_event_loop_policy().get_event_loop().create_task(cycle_check())
+    asyncio.get_event_loop_policy().get_event_loop().run_forever()
