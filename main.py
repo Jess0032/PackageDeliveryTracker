@@ -121,7 +121,7 @@ async def get_status_package_from_api(session, codigo: str):
 
     except aiohttp.ClientConnectorError as e:
         print('Connection Error for ', codigo, str(e))
-        await bot.send_message(ADMIN, 'Connection Error for ', codigo, str(e))
+        await bot.send_message(ADMIN, 'Connection Error for '+codigo+str(e))
 
 
 async def get_new_token():
