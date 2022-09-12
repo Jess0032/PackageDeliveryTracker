@@ -39,4 +39,7 @@ dont_exist = "Usted no esta rastreando ese paquete"
 success_del = "Eliminado exitoso. Este paquete se dejará de rastrear"
 
 max_exceeded = "Número máximo de paquetes rastreados por un usuario excedido."
+
 delivered = "Este paquete ya ha sido entregado."
+
+codes = "**{code}** estado: **{status}** destino: **{destination}**\n"

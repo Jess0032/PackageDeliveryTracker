@@ -67,13 +67,13 @@ async def del_elements(event):
         await event.respond(not_argumnts.format(command='del'))
         return
 
-    await event.respond(db.delete(str(event.peer_id.user_id), code))
+    await event.respond(db.delete(str(event.peer_id.user_id), str.upper(code)))
 
 
 @bot.on(NewMessage(pattern='\/codes'))
 async def get_codes_trackin(event):
     text = ''.join(
-        f'code: **{package[0]}** status: **{json.loads(package[1])["status"]}**\n'
+        codes.format(code=package[0], status=json.loads(package[1])["status"], destination=json.loads(package[1])["destination"])
         for package in db.get_packages_from_user(str(event.peer_id.user_id))
     )
 
@@ -143,7 +143,7 @@ async def cycle_check():
         packages = db.get_packages()
         connector = aiohttp.TCPConnector(force_close=True)
         async with aiohttp.ClientSession(connector=connector) as session:
-            await check_packages(session, packages, 3)
+            await check_packages(session, packages, 1)
         log_text = f"Cycle made in {datetime.now()-start}, {len(packages)} checked, start at {start}"
         print(log_text)
         await bot.send_message(ADMIN, log_text)
