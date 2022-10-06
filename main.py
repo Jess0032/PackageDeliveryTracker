@@ -61,7 +61,7 @@ async def add_elements(event):
             await event.respond(string_status(code, status))
 
     except aiohttp.ClientConnectorError as e:
-        event.respond(client_error)
+        await event.respond(client_error)
 
     except Exception as e:
         print(e)
@@ -77,7 +77,7 @@ async def del_elements(event):
         await event.respond(db.delete(str(event.peer_id.user_id), str.upper(code)))
 
     except aiohttp.ClientConnectorError as e:
-        event.respond(client_error)
+        await event.respond(client_error)
 
     except Exception as e:
         print(e)
@@ -98,7 +98,7 @@ async def get_codes_trackin(event):
         async with aiohttp.ClientSession(connector=connector) as session:
             await check_packages(session, db.get_packages_from_user(str(event.peer_id.user_id)), 1)
     except aiohttp.ClientConnectorError as e:
-        event.respond(client_error)
+        await event.respond(client_error)
     except Exception as e:
         print(e)
 
@@ -119,7 +119,7 @@ async def status(event):
             await check_packages(session, db.get_packages_from_user(str(event.peer_id.user_id)), 1)
 
     except aiohttp.ClientConnectorError as e:
-        event.respond(client_error)
+        await event.respond(client_error)
     except Exception as e:
         print(e)
 
@@ -200,6 +200,7 @@ async def check_changes(session, package):
             db.update(package[0], {'status': last['estado'], 'destination': last['oficina_destino']})
     except Exception as e:
         print(e)
+        await asyncio.sleep(600)
 
 
 if __name__ == "__main__":
