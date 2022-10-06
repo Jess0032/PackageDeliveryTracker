@@ -43,3 +43,6 @@ max_exceeded = "Número máximo de paquetes rastreados por un usuario excedido."
 delivered = "Este paquete ya ha sido entregado."
 
 codes = "**{code}** estado: **{status}** destino: **{destination}**\n"
+
+client_error = "Existe un problema con correos de cuba y no podemos acceder a su página para obtener la información " \
+               "que desea. Hasta que reestablezcan sus servicios el bot no podrá funcionar correctamente. "

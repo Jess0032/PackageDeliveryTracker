@@ -23,11 +23,11 @@ def string_status(code, status):
                                timeline=status['timeline'])
 
     timeline = ''.join(f"**🟦️ {len(status['datos']) - i}**" + string_data2.format(item['oficina_origen'],
-                                                                                item['oficina_destino'],
-                                                                                item['estado'], item['fecha'])
-                    for i, item in enumerate(status['datos']))
+                                                                                   item['oficina_destino'],
+                                                                                   item['estado'], item['fecha'])
+                       for i, item in enumerate(status['datos']))
 
-    return text+(timeline or no_data)
+    return text + (timeline or no_data)
 
 
 @bot.on(NewMessage(pattern='/start'))
@@ -37,68 +37,91 @@ async def welcome(event):
 
 @bot.on(NewMessage(pattern='\/add\s*(\w*)'))
 async def add_elements(event):
+    try:
+        if not (code := event.pattern_match.group(1)):
+            await event.respond(not_argumnts.format(command='add'))
+            return
 
-    if not (code := event.pattern_match.group(1)):
-        await event.respond(not_argumnts.format(command='add'))
-        return
+        async with aiohttp.ClientSession() as session:
+            status = await get_status_package_from_api(session, code)
 
-    async with aiohttp.ClientSession() as session:
-        status = await get_status_package_from_api(session, code)
+        if status['timeline'] == "ENTREGADO":
+            await event.respond(delivered)
+            await event.respond(string_status(code, status))
+            return
 
-    if status['timeline'] == "ENTREGADO":
-        await event.respond(delivered)
-        await event.respond(string_status(code, status))
-        return
+        db_respond = db.add(str.upper(code), str(event.peer_id.user_id),
+                            {'status': status['datos'][0]['estado'],
+                             'destination': status['datos'][0]['oficina_destino']}
+                            if status['datos'] else {'status': '', 'destination': ''})
 
-    db_respond = db.add(str.upper(code), str(event.peer_id.user_id),
-                        {'status': status['datos'][0]['estado'],
-                         'destination': status['datos'][0]['oficina_destino']}
-                        if status['datos'] else {'status': '', 'destination': ''})
+        await event.respond(db_respond)
 
-    await event.respond(db_respond)
+        if db_respond == success_add:
+            await event.respond(string_status(code, status))
 
-    if db_respond == success_add:
-        await event.respond(string_status(code, status))
+    except aiohttp.ClientConnectorError as e:
+        event.respond(client_error)
+
+    except Exception as e:
+        print(e)
 
 
 @bot.on(NewMessage(pattern='\/del\s*(\w*)'))
 async def del_elements(event):
-    if not (code := event.pattern_match.group(1)):
-        await event.respond(not_argumnts.format(command='del'))
-        return
+    try:
+        if not (code := event.pattern_match.group(1)):
+            await event.respond(not_argumnts.format(command='del'))
+            return
 
-    await event.respond(db.delete(str(event.peer_id.user_id), str.upper(code)))
+        await event.respond(db.delete(str(event.peer_id.user_id), str.upper(code)))
+
+    except aiohttp.ClientConnectorError as e:
+        event.respond(client_error)
+
+    except Exception as e:
+        print(e)
 
 
 @bot.on(NewMessage(pattern='\/codes'))
 async def get_codes_trackin(event):
-    text = ''.join(
-        codes.format(code=package[0], status=json.loads(package[1])["status"], destination=json.loads(package[1])["destination"])
-        for package in db.get_packages_from_user(str(event.peer_id.user_id))
-    )
+    try:
+        text = ''.join(
+            codes.format(code=package[0], status=json.loads(package[1])["status"],
+                         destination=json.loads(package[1])["destination"])
+            for package in db.get_packages_from_user(str(event.peer_id.user_id))
+        )
 
-    await event.respond(text or not_codes)
-    
-    connector = aiohttp.TCPConnector(force_close=True)
-    async with aiohttp.ClientSession(connector=connector) as session:
-        await check_packages(session, db.get_packages_from_user(str(event.peer_id.user_id)), 1)
+        await event.respond(text or not_codes)
+
+        connector = aiohttp.TCPConnector(force_close=True)
+        async with aiohttp.ClientSession(connector=connector) as session:
+            await check_packages(session, db.get_packages_from_user(str(event.peer_id.user_id)), 1)
+    except aiohttp.ClientConnectorError as e:
+        event.respond(client_error)
+    except Exception as e:
+        print(e)
 
 
 @bot.on(NewMessage(pattern='\/status\s*(\w*)'))
 async def status(event):
+    try:
+        if not (code := event.pattern_match.group(1)):
+            await event.respond(not_argumnts.format(command='status'))
+            return
 
-    if not (code := event.pattern_match.group(1)):
-        await event.respond(not_argumnts.format(command='status'))
-        return
+        connector = aiohttp.TCPConnector(force_close=True)
+        async with aiohttp.ClientSession(connector=connector) as session:
+            status = await get_status_package_from_api(session, code)
 
-    connector = aiohttp.TCPConnector(force_close=True)
-    async with aiohttp.ClientSession(connector=connector) as session:
+            await event.respond(string_status(code, status))
 
-        status = await get_status_package_from_api(session, code)
+            await check_packages(session, db.get_packages_from_user(str(event.peer_id.user_id)), 1)
 
-        await event.respond(string_status(code, status))
-
-        await check_packages(session, db.get_packages_from_user(str(event.peer_id.user_id)), 1)
+    except aiohttp.ClientConnectorError as e:
+        event.respond(client_error)
+    except Exception as e:
+        print(e)
 
 
 async def get_status_package_from_api(session, codigo: str):
@@ -121,7 +144,10 @@ async def get_status_package_from_api(session, codigo: str):
 
     except aiohttp.ClientConnectorError as e:
         print('Connection Error for ', codigo, str(e))
-        await bot.send_message(ADMIN, 'Connection Error for '+codigo+str(e))
+        await bot.send_message(ADMIN, 'Connection Error for ' + codigo + str(e))
+        raise e
+    except Exception as e:
+        print(e)
 
 
 async def get_new_token():
@@ -144,33 +170,36 @@ async def cycle_check():
         connector = aiohttp.TCPConnector(force_close=True)
         async with aiohttp.ClientSession(connector=connector) as session:
             await check_packages(session, packages, 1)
-        log_text = f"Cycle made in {datetime.now()-start}, {len(packages)} checked, start at {start}"
+        log_text = f"Cycle made in {datetime.now() - start}, {len(packages)} checked, start at {start}"
         print(log_text)
         await bot.send_message(ADMIN, log_text)
 
 
 async def check_changes(session, package):
-    status = await get_status_package_from_api(session, package[0])
-    status_fromdb = json.loads(package[1])
+    try:
+        status = await get_status_package_from_api(session, package[0])
+        status_fromdb = json.loads(package[1])
 
-    if not status['datos'] or (status_fromdb['status'] == status['datos'][0]['estado']
-                                and status_fromdb['destination'] == status['datos'][0]['oficina_destino']):
-        return
+        if not status['datos'] or (status_fromdb['status'] == status['datos'][0]['estado']
+                                   and status_fromdb['destination'] == status['datos'][0]['oficina_destino']):
+            return
 
-    last = status['datos'][0]
+        last = status['datos'][0]
 
-    message = new_state.format(package=package[0], timeline=status['timeline']) + \
-              string_data2.format(last['oficina_origen'],
-                                  last['oficina_destino'],
-                                  last['estado'], last['fecha']) + view_all_timeline.format(package=package[0])
+        message = new_state.format(package=package[0], timeline=status['timeline']) + \
+                  string_data2.format(last['oficina_origen'],
+                                      last['oficina_destino'],
+                                      last['estado'], last['fecha']) + view_all_timeline.format(package=package[0])
 
-    for user in db.get_users_from_packages(package[0]):
-        await bot.send_message(int(user), message)
+        for user in db.get_users_from_packages(package[0]):
+            await bot.send_message(int(user), message)
 
-    if status['timeline'] == "ENTREGADO":
-        db.delete_package(package[0])
-    else:
-        db.update(package[0], {'status': last['estado'], 'destination': last['oficina_destino']})
+        if status['timeline'] == "ENTREGADO":
+            db.delete_package(package[0])
+        else:
+            db.update(package[0], {'status': last['estado'], 'destination': last['oficina_destino']})
+    except Exception as e:
+        print(e)
 
 
 if __name__ == "__main__":
