@@ -95,9 +95,7 @@ async def get_codes_trackin(event):
 
         await event.respond(text or not_codes)
 
-        connector = aiohttp.TCPConnector(force_close=True)
-        async with aiohttp.ClientSession(connector=connector) as session:
-            await check_packages(session, db.get_packages_from_user(str(event.peer_id.user_id)), 1)
+        await check_packages(db.get_packages_from_user(str(event.peer_id.user_id)), 1)
     except aiohttp.ClientConnectorError as e:
         await event.respond(client_error)
     except Exception as e:
@@ -114,10 +112,9 @@ async def status(event):
         connector = aiohttp.TCPConnector(force_close=True)
         async with aiohttp.ClientSession(connector=connector) as session:
             status = await get_status_package_from_api(session, code)
-
             await event.respond(string_status(code, status))
 
-            await check_packages(session, db.get_packages_from_user(str(event.peer_id.user_id)), 1)
+        await check_packages(db.get_packages_from_user(str(event.peer_id.user_id)), 1)
 
     except aiohttp.ClientConnectorError as e:
         await event.respond(client_error)
