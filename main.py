@@ -5,6 +5,7 @@ from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import aiohttp as aiohttp
+from telethon.errors import UserIsBlockedError
 
 from telethon.events import NewMessage
 import logging
@@ -137,8 +138,8 @@ async def get_status_package_from_api(session, codigo: str):
             response_json = await response.json()
 
         if response_json['error']:
-            await bot.send_message(ADMIN, response_json['error'])
-            await bot.send_message(ADMIN, token)
+            await bot.send_message(ADMIN, json.dumps(response_json))
+            await bot.send_message(ADMIN, token or 'No token')
 
         if response_json['error'] == 'Token Inválido':
             print(response_json)
@@ -155,7 +156,6 @@ async def get_status_package_from_api(session, codigo: str):
         print(e)
 
 
-
 async def get_new_token():
     print('Getting new token')
     global token
@@ -164,19 +164,24 @@ async def get_new_token():
             token = re.search('<input type="hidden" id="side" value="(\w+)">', await response.text())[1]
 
 
-async def check_packages(session, packages, time):
-    for package in packages:
-        await check_changes(session, package)
-        await asyncio.sleep(time)
+async def check_packages(packages, time):
+
+    for chunk in range(0, len(packages), 20):
+        connector = aiohttp.TCPConnector(force_close=True)
+
+        async with aiohttp.ClientSession(connector=connector) as session:
+            for package in packages[chunk:chunk + 20]:
+                await check_changes(session, package)
+                await asyncio.sleep(time+1)
+
+            await asyncio.sleep(time)
 
 
 async def cycle_check():
     while True:
         start = datetime.now()
         packages = db.get_packages()
-        connector = aiohttp.TCPConnector(force_close=True)
-        async with aiohttp.ClientSession(connector=connector) as session:
-            await check_packages(session, packages, 1)
+        await check_packages(packages, 1)
         log_text = f"Cycle made in {datetime.now() - start}, {len(packages)} checked, start at {start}"
         print(log_text)
         await bot.send_message(ADMIN, log_text)
@@ -199,16 +204,22 @@ async def check_changes(session, package):
                                       last['estado'], last['fecha']) + view_all_timeline.format(package=package[0])
 
         for user in db.get_users_from_packages(package[0]):
-            await bot.send_message(int(user), message)
+            try:
+                await bot.send_message(int(user), message)
+            except UserIsBlockedError as e:
+                for package in db.get_packages_from_user(user):
+                    db.delete(user, package[0])
 
         if status['timeline'] == "ENTREGADO":
             db.delete_package(package[0])
         else:
             db.update(package[0], {'status': last['estado'], 'destination': last['oficina_destino']})
-    except Exception as e:
+
+    except aiohttp.ClientConnectorError as e:
         print(e)
         await asyncio.sleep(600)
-
+    except Exception as e:
+        print(e)
 
 if __name__ == "__main__":
     asyncio.get_event_loop_policy().get_event_loop().create_task(cycle_check())

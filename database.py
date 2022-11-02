@@ -36,9 +36,9 @@ class DBHelper:
 
         with sessionmaker(self.engine)() as session:
             try:
-                db_item = session.query(Package).filter_by(package_id=package_id, user_id=user_id).first()
-                if db_item:
+                if session.query(Package).filter_by(package_id=package_id, user_id=user_id).first():
                     return alredy_exist
+
                 session.add(Package(package_id=package_id, user_id=user_id, laststatus=status))
                 session.commit()
                 return success_add
@@ -90,8 +90,8 @@ class DBHelper:
             try:
                 return (
                     session.query(Package.package_id, Package.status)
-                        .filter_by(user_id=user_id)
-                        .all()
+                    .filter_by(user_id=user_id)
+                    .all()
                 )
 
             except Exception as e:
@@ -102,8 +102,8 @@ class DBHelper:
             try:
                 return (
                     session.query(Package.package_id, Package.status)
-                        .distinct(Package.package_id)
-                        .all()
+                    .distinct(Package.package_id)
+                    .all()
                 )
 
             except Exception as e:
@@ -115,8 +115,8 @@ class DBHelper:
                 return [
                     x[0]
                     for x in session.query(Package.user_id)
-                        .filter_by(package_id=package_id)
-                        .all()
+                    .filter_by(package_id=package_id)
+                    .all()
                 ]
 
             except Exception as e:
