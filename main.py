@@ -164,14 +164,13 @@ async def get_new_token():
 async def check_packages(packages, time):
 
     for chunk in range(0, len(packages), 20):
-        connector = aiohttp.TCPConnector(force_close=True)
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(force_close=True)) as session:
 
-        async with aiohttp.ClientSession(connector=connector) as session:
             for package in packages[chunk:chunk + 20]:
                 await check_changes(session, package)
-                await asyncio.sleep(time+1)
+                await asyncio.sleep(time)
 
-            await asyncio.sleep(time)
+        await asyncio.sleep(time+1)
 
 
 async def cycle_check():
