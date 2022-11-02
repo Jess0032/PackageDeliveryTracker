@@ -136,25 +136,32 @@ async def get_status_package_from_api(session, codigo: str):
         async with session.post(url, data=data) as response:
             response_json = await response.json()
 
+        if response_json['error']:
+            await bot.send_message(ADMIN, response_json['error'])
+            await bot.send_message(ADMIN, token)
+
         if response_json['error'] == 'Token Inválido':
+            print(response_json)
             await get_new_token()
             response_json = await get_status_package_from_api(session, codigo)
 
         return response_json
 
     except aiohttp.ClientConnectorError as e:
-        print('Connection Error for ', codigo, str(e))
-        await bot.send_message(ADMIN, 'Connection Error for ' + codigo + str(e))
+        print('Connection Error for ', codigo, e)
+        await bot.send_message(ADMIN, f'Connection Error for {codigo}{str(e)}')
         raise e
     except Exception as e:
         print(e)
 
 
+
 async def get_new_token():
+    print('Getting new token')
     global token
     async with aiohttp.ClientSession() as session:
         async with session.get('https://www.correos.cu/rastreador-de-envios/') as response:
-            token = re.search('<input type="hidden" id="side" value="(\w+)">', await response.text()).group(1)
+            token = re.search('<input type="hidden" id="side" value="(\w+)">', await response.text())[1]
 
 
 async def check_packages(session, packages, time):
