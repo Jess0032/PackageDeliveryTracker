@@ -17,6 +17,8 @@ logging.basicConfig(format='[%(levelname) 5s/%(asctime)s]%(name)s:%(message)s', 
 
 token = ""
 
+date_format = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S').strftime('%d %B, %Y %I:%M:%S %p')
+
 
 def string_status(code, status):
     text = string_data1.format(code=str.upper(code),
@@ -25,7 +27,8 @@ def string_status(code, status):
 
     timeline = ''.join(f"**🟦️ {len(status['datos']) - i}**" + string_data2.format(item['oficina_origen'],
                                                                                    item['oficina_destino'],
-                                                                                   item['estado'], item['fecha'])
+                                                                                   item['estado'],
+                                                                                   date_format(item['fecha']))
                        for i, item in enumerate(status['datos']))
 
     return text + (timeline or no_data)
@@ -162,7 +165,6 @@ async def get_new_token():
 
 
 async def check_packages(packages, time):
-
     for chunk in range(0, len(packages), 20):
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(force_close=True)) as session:
 
@@ -170,7 +172,7 @@ async def check_packages(packages, time):
                 await check_changes(session, package)
                 await asyncio.sleep(time)
 
-        await asyncio.sleep(time+1)
+        await asyncio.sleep(time + 1)
 
 
 async def cycle_check():
@@ -197,12 +199,12 @@ async def check_changes(session, package):
         message = new_state.format(package=package[0], timeline=status['timeline']) + \
                   string_data2.format(last['oficina_origen'],
                                       last['oficina_destino'],
-                                      last['estado'], last['fecha']) + view_all_timeline.format(package=package[0])
+                                      last['estado'], date_format(last['fecha'])) + view_all_timeline.format(package=package[0])
 
         for user in db.get_users_from_packages(package[0]):
             try:
                 await bot.send_message(int(user), message)
-            except UserIsBlockedError as e:
+            except UserIsBlockedError:
                 for package in db.get_packages_from_user(user):
                     db.delete(user, package[0])
 
@@ -216,6 +218,7 @@ async def check_changes(session, package):
         await asyncio.sleep(600)
     except Exception as e:
         print(e)
+
 
 if __name__ == "__main__":
     asyncio.get_event_loop_policy().get_event_loop().create_task(cycle_check())
