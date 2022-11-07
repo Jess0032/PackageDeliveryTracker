@@ -172,7 +172,7 @@ async def check_packages(packages, time):
                 await check_changes(session, package)
                 await asyncio.sleep(time)
 
-        await asyncio.sleep(time + 1)
+        await asyncio.sleep(1)
 
 
 async def cycle_check():
