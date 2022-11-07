@@ -179,7 +179,7 @@ async def cycle_check():
     while True:
         start = datetime.now()
         packages = db.get_packages()
-        await check_packages(packages, 1)
+        await check_packages(packages, 30)
         log_text = f"Cycle made in {datetime.now() - start}, {len(packages)} checked, start at {start}"
         print(log_text)
         await bot.send_message(ADMIN, log_text)
@@ -221,4 +221,5 @@ async def check_changes(session, package):
 
 
 if __name__ == "__main__":
+    asyncio.get_event_loop_policy().get_event_loop().create_task(cycle_check())
     asyncio.get_event_loop_policy().get_event_loop().run_forever()
