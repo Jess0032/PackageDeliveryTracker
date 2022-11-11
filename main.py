@@ -16,6 +16,7 @@ from config import *
 logging.basicConfig(format='[%(levelname) 5s/%(asctime)s]%(name)s:%(message)s', level=logging.WARNING)
 
 token = ""
+time_wape_up = None
 
 date_format = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S').strftime('%d %B, %Y %I:%M:%S %p')
 
