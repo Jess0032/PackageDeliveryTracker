@@ -32,7 +32,7 @@ not_codes = "Usted no está rastreando ningún código aún."
 alredy_exist = "Este código ya se está rastreando."
 
 success_add = "Inserción exitosa. Cuando exista un cambio en el estado del paquete le notificaremos. Estado actual a " \
-          "continuación. "
+              "continuación. "
 
 dont_exist = "Usted no esta rastreando ese paquete"
 
@@ -46,3 +46,6 @@ codes = "**{code}** estado: **{status}** destino: **{destination}**\n"
 
 client_error = "Existe un problema con correos de cuba y no podemos acceder a su página para obtener la información " \
                "que desea. Hasta que reestablezcan sus servicios el bot no podrá funcionar correctamente. "
+
+time_wape_up_string = "El bot ha sobrepasado el límite de peticiones a la página de correos de cuba, por favor " \
+                      "intente dentro de **{}** "

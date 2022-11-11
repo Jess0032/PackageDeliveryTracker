@@ -1,7 +1,7 @@
 import asyncio
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import aiohttp as aiohttp
@@ -42,6 +42,9 @@ async def welcome(event):
 @bot.on(NewMessage(pattern='\/add\s*(\w*)'))
 async def add_elements(event):
     try:
+        if time_wape_up:
+            await event.respond(time_wape_up_string.format(time_wape_up-datetime.now()))
+            return
         if not (code := event.pattern_match.group(1)):
             await event.respond(not_argumnts.format(command='add'))
             return
@@ -108,6 +111,9 @@ async def get_codes_trackin(event):
 @bot.on(NewMessage(pattern='\/status\s*(\w*)'))
 async def status(event):
     try:
+        if time_wape_up:
+            await event.respond(time_wape_up_string.format(time_wape_up-datetime.now()))
+            return
         if not (code := event.pattern_match.group(1)):
             await event.respond(not_argumnts.format(command='status'))
             return
@@ -137,9 +143,12 @@ async def get_status_package_from_api(session, codigo: str):
         async with session.post(url, data=data) as response:
             response_json = await response.json()
 
-        if response_json['error']:
+        if response_json['error'] == "Ha consumido su cuota de peticiones.":
             await bot.send_message(ADMIN, json.dumps(response_json))
-            await bot.send_message(ADMIN, token or 'No token')
+            global time_wape_up
+            time_wape_up = datetime.now() + timedelta(minutes=10)
+            await asyncio.sleep(600)
+            time_wape_up = None
 
         if response_json['error'] == 'Token Inválido':
             print(response_json)
@@ -165,21 +174,17 @@ async def get_new_token():
 
 
 async def check_packages(packages, time):
-    for chunk in range(0, len(packages), 20):
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(force_close=True)) as session:
-
-            for package in packages[chunk:chunk + 20]:
-                await check_changes(session, package)
-                await asyncio.sleep(time)
-
-        await asyncio.sleep(1)
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(force_close=True)) as session:
+        for package in packages:
+            await check_changes(session, package)
+            await asyncio.sleep(time)
 
 
 async def cycle_check():
     while True:
-        start = datetime.now()
         packages = db.get_packages()
-        await check_packages(packages, 30)
+        start = datetime.now()
+        await check_packages(packages, 13)
         log_text = f"Cycle made in {datetime.now() - start}, {len(packages)} checked, start at {start}"
         print(log_text)
         await bot.send_message(ADMIN, log_text)
@@ -199,7 +204,8 @@ async def check_changes(session, package):
         message = new_state.format(package=package[0], timeline=status['timeline']) + \
                   string_data2.format(last['oficina_origen'],
                                       last['oficina_destino'],
-                                      last['estado'], date_format(last['fecha'])) + view_all_timeline.format(package=package[0])
+                                      last['estado'], date_format(last['fecha'])) + view_all_timeline.format(
+            package=package[0])
 
         for user in db.get_users_from_packages(package[0]):
             try:
