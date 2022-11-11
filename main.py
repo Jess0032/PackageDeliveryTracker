@@ -150,8 +150,8 @@ async def get_status_package_from_api(session, codigo: str):
         if response_json['error'] == "Ha consumido su cuota de peticiones.":
             await bot.send_message(ADMIN, json.dumps(response_json))
             global time_wape_up
-            time_wape_up = datetime.now() + timedelta(minutes=10)
-            await asyncio.sleep(600)
+            time_wape_up = datetime.now() + timedelta(minutes=15)
+            await asyncio.sleep(900)
             time_wape_up = None
 
         if response_json['error'] == 'Token Inválido':
