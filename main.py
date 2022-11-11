@@ -94,6 +94,9 @@ async def del_elements(event):
 @bot.on(NewMessage(pattern='\/codes'))
 async def get_codes_trackin(event):
     try:
+        if time_wape_up:
+            await event.respond(time_wape_up_string.format(time_wape_up-datetime.now()))
+            return
         text = ''.join(
             codes.format(code=package[0], status=json.loads(package[1])["status"],
                          destination=json.loads(package[1])["destination"])
