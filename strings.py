@@ -49,3 +49,5 @@ client_error = "Existe un problema con correos de cuba y no podemos acceder a su
 
 time_wape_up_string = "El bot ha sobrepasado el límite de peticiones a la página de correos de cuba, por favor " \
                       "intente dentro de **{}** "
+
+bot_started = "El bot ha sido iniciado correctamente. "

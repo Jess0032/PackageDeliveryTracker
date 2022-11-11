@@ -181,6 +181,7 @@ async def check_packages(packages, time):
 
 
 async def cycle_check():
+    await bot.send_message(ADMIN, bot_started)
     while True:
         packages = db.get_packages()
         start = datetime.now()
