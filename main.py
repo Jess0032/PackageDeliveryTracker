@@ -150,9 +150,10 @@ async def get_status_package_from_api(session, codigo: str):
         if response_json['error'] == "Ha consumido su cuota de peticiones.":
             await bot.send_message(ADMIN, json.dumps(response_json))
             global time_wape_up
-            time_wape_up = datetime.now() + timedelta(minutes=15)
-            await asyncio.sleep(900)
+            time_wape_up = datetime.now() + timedelta(minutes=5)
+            await asyncio.sleep(300)
             time_wape_up = None
+            return "new session"
 
         if response_json['error'] == 'Token Inválido':
             print(response_json)
@@ -178,10 +179,13 @@ async def get_new_token():
 
 
 async def check_packages(packages, time):
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(force_close=True)) as session:
-        for package in packages:
-            await check_changes(session, package)
-            await asyncio.sleep(time)
+    session = aiohttp.ClientSession(connector=aiohttp.TCPConnector(force_close=True))
+    for package in packages:
+        result = await check_changes(session, package)
+        if result == "new session":
+            await session.close()
+            session = aiohttp.ClientSession(connector=aiohttp.TCPConnector(force_close=True))
+        await asyncio.sleep(time)
 
 
 async def cycle_check():
@@ -198,6 +202,8 @@ async def cycle_check():
 async def check_changes(session, package):
     try:
         status = await get_status_package_from_api(session, package[0])
+        if status == "new session":
+            return "new session"
         status_fromdb = json.loads(package[1])
 
         if not status['datos'] or (status_fromdb['status'] == status['datos'][0]['estado']
